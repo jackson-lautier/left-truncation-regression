@@ -1,3 +1,5 @@
+rm(list=ls())
+
 require('ggplot2')
 
 #where results will be stored
