@@ -1,3 +1,5 @@
+#premable + running time warnings
+
 #set-up of problem
 
 #density function for lifetime
@@ -56,7 +58,7 @@ source('./code/hessian.std.error.R')
 num.reps = 1000
 res.mat = matrix(NA, nrow = num.reps, ncol = 2 * (length(c(beta.true, gv.true)) - 1))
 
-rep.start = 1 #for breaking into parts r = 1355 stopped
+rep.start = 1
 
 start_time <- Sys.time()
 for(r in c(rep.start:num.reps)){
@@ -425,51 +427,51 @@ cp = c()
 
 ci.low = ss.results$g1 - qnorm(0.975) * sqrt(ss.results$se.g1)
 ci.high = ss.results$g1 + qnorm(0.975) * sqrt(ss.results$se.g1)
-cp = append(cp, sum( (gv.true[1] > ci.low) & (gv.true[1] < ci.high) ) / 1000)
+cp = append(cp, sum( (gv.true[1] > ci.low) & (gv.true[1] < ci.high) ) / num.reps)
 
 ci.low = ss.results$g2 - qnorm(0.975) * sqrt(ss.results$se.g2)
 ci.high = ss.results$g2 + qnorm(0.975) * sqrt(ss.results$se.g2)
-cp = append(cp, sum( (gv.true[2] > ci.low) & (gv.true[2] < ci.high) ) / 1000)
+cp = append(cp, sum( (gv.true[2] > ci.low) & (gv.true[2] < ci.high) ) / num.reps)
 
 ci.low = ss.results$g3 - qnorm(0.975) * sqrt(ss.results$se.g3)
 ci.high = ss.results$g3 + qnorm(0.975) * sqrt(ss.results$se.g3)
-cp = append(cp, sum( (gv.true[3] > ci.low) & (gv.true[3] < ci.high) ) / 1000)
+cp = append(cp, sum( (gv.true[3] > ci.low) & (gv.true[3] < ci.high) ) / num.reps)
 
 ci.low = ss.results$g4 - qnorm(0.975) * sqrt(ss.results$se.g4)
 ci.high = ss.results$g4 + qnorm(0.975) * sqrt(ss.results$se.g4)
-cp = append(cp, sum( (gv.true[4] > ci.low) & (gv.true[4] < ci.high) ) / 1000)
+cp = append(cp, sum( (gv.true[4] > ci.low) & (gv.true[4] < ci.high) ) / num.reps)
 
 ci.low = ss.results$g5 - qnorm(0.975) * sqrt(ss.results$se.g5)
 ci.high = ss.results$g5 + qnorm(0.975) * sqrt(ss.results$se.g5)
-cp = append(cp, sum( (gv.true[5] > ci.low) & (gv.true[5] < ci.high) ) / 1000)
+cp = append(cp, sum( (gv.true[5] > ci.low) & (gv.true[5] < ci.high) ) / num.reps)
 
 ci.low = ss.results$g6 - qnorm(0.975) * sqrt(ss.results$se.g6)
 ci.high = ss.results$g6 + qnorm(0.975) * sqrt(ss.results$se.g6)
-cp = append(cp, sum( (gv.true[6] > ci.low) & (gv.true[6] < ci.high) ) / 1000)
+cp = append(cp, sum( (gv.true[6] > ci.low) & (gv.true[6] < ci.high) ) / num.reps)
 
 ci.low = ss.results$g7 - qnorm(0.975) * sqrt(ss.results$se.g7)
 ci.high = ss.results$g7 + qnorm(0.975) * sqrt(ss.results$se.g7)
-cp = append(cp, sum( (gv.true[7] > ci.low) & (gv.true[7] < ci.high) ) / 1000)
+cp = append(cp, sum( (gv.true[7] > ci.low) & (gv.true[7] < ci.high) ) / num.reps)
 
 ci.low = ss.results$b0 - qnorm(0.975) * sqrt(ss.results$se.b0)
 ci.high = ss.results$b0 + qnorm(0.975) * sqrt(ss.results$se.b0)
-cp = append(cp, sum( (beta.true[1] > ci.low) & (beta.true[1] < ci.high) ) / 1000)
+cp = append(cp, sum( (beta.true[1] > ci.low) & (beta.true[1] < ci.high) ) / num.reps)
 
 ci.low = ss.results$b1 - qnorm(0.975) * sqrt(ss.results$se.b1)
 ci.high = ss.results$b1 + qnorm(0.975) * sqrt(ss.results$se.b1)
-cp = append(cp, sum( (beta.true[2] > ci.low) & (beta.true[2] < ci.high) ) / 1000)
+cp = append(cp, sum( (beta.true[2] > ci.low) & (beta.true[2] < ci.high) ) / num.reps)
 
 ci.low = ss.results$b2 - qnorm(0.975) * sqrt(ss.results$se.b2)
 ci.high = ss.results$b2 + qnorm(0.975) * sqrt(ss.results$se.b2)
-cp = append(cp, sum( (beta.true[3] > ci.low) & (beta.true[3] < ci.high) ) / 1000)
+cp = append(cp, sum( (beta.true[3] > ci.low) & (beta.true[3] < ci.high) ) / num.reps)
 
 ci.low = ss.results$b3 - qnorm(0.975) * sqrt(ss.results$se.b3)
 ci.high = ss.results$b3 + qnorm(0.975) * sqrt(ss.results$se.b3)
-cp = append(cp, sum( (beta.true[4] > ci.low) & (beta.true[4] < ci.high) ) / 1000)
+cp = append(cp, sum( (beta.true[4] > ci.low) & (beta.true[4] < ci.high) ) / num.reps)
 
 ci.low = ss.results$b4 - qnorm(0.975) * sqrt(ss.results$se.b4)
 ci.high = ss.results$b4 + qnorm(0.975) * sqrt(ss.results$se.b4)
-cp = append(cp, sum( (beta.true[5] > ci.low) & (beta.true[5] < ci.high) ) / 1000)
+cp = append(cp, sum( (beta.true[5] > ci.low) & (beta.true[5] < ci.high) ) / num.reps)
 
 manu.table$cp = cp
 

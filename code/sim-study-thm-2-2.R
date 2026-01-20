@@ -55,10 +55,10 @@ source('./code/hessian.std.error.R')
 source('./code/binom.p.est.aoas.R')
 
 
-num.reps = 1000
+num.reps = 10
 rep.start = 1
 
-Omega = rep(NA,1000)
+Omega = rep(NA,num.reps)
 
 start_time <- Sys.time()
 for(r in c(rep.start:num.reps)){
