@@ -1,3 +1,73 @@
+######################################################################################
+######################################################################################
+######################################################################################
+# Data analysis scripts to reproduce application results in the manuscript:
+# 
+# "Discrete Time-to-Event Regression Analysis Under Left-Truncation"
+#
+# LAUTIER, POZDNYAKOV, YAN
+# 2026
+#
+# Computer and R version details
+# _                                
+# platform       x86_64-w64-mingw32               
+# arch           x86_64                           
+# os             mingw32                          
+# crt            ucrt                             
+# system         x86_64, mingw32                  
+# status                                          
+# major          4                                
+# minor          5.1                              
+# year           2025                             
+# month          06                               
+# day            13                               
+# svn rev        88306                            
+# language       R                                
+# version.string R version 4.5.1 (2025-06-13 ucrt)
+# nickname       Great Square Root
+#
+######################################################################################
+######################################################################################
+#
+# RUN-TIME WARNING: may exceed 10 hours for 1,000 reps depending on computing power
+#
+######################################################################################
+######################################################################################
+######################################################################################
+######################################################################################
+# INSTRUCTIONS
+#
+# supporting files:
+# "./processed-data/aart-2017-37mo.csv
+#
+# './code/h-star-simulation-function-beta-parameters.R')
+# './code/h.star.param.est.R')
+# './code/hessian.std.error.R')
+# './code/binom.p.est.aoas.R'
+#
+#The code must be run sequentially downwards.
+#Results will appear in a newly created 'results' folder.
+#
+#
+######################################################################################
+######################################################################################
+######################################################################################
+######################################################################################
+
+require('ggplot2')
+require('extrafont')
+
+######################################################################################
+######################################################################################
+######################################################################################
+######################################################################################
+
+#where results will be stored
+dir.create('./results/')
+
+################################################################################
+rm(list=ls())
+
 #set-up of problem
 
 #density function for lifetime
@@ -55,7 +125,7 @@ source('./code/hessian.std.error.R')
 source('./code/binom.p.est.aoas.R')
 
 
-num.reps = 10
+num.reps = 1000
 rep.start = 1
 
 Omega = rep(NA,num.reps)
@@ -348,8 +418,8 @@ for(r in c(rep.start:num.reps)){
 
 }
 
-require('ggplot2')
-require('extrafont')
+#require('ggplot2')
+#require('extrafont')
 
 ss.results = read.csv("./results/sim-study-results-manu-chi-sq.csv")
 ss.results = ss.results[,-1]
