@@ -6,7 +6,7 @@
 
 This repository is intended as an online supplement to the working paper:
 
-Jackson P. Lautier. Vladimir Pozdnyakov. Jun Yan. "Discrete Time-to-Event Regression Analysis Under Left-Truncation with Applications to Consumer Finance."
+Lautier, J. P., Pozdnyakov, V., Yan, J. (2026) "Discrete Time-to-Event Regression Analysis Under Left-Truncation with Applications to Consumer Finance."
 (see [https://jacksonlautier.com/publications](https://jacksonlautier.com/publications)
 for current working papers)
 
