@@ -23,7 +23,7 @@ default_time = function(bond_data) {
       bal_vec[1]
     )
   
-  paid_princ = sum(prc_vec) + 10
+  paid_princ = sum(prc_vec) + 10 #small pad to avoid rounding shortages
   
   #repayment check: total principal paid
   if( paid_princ >= init_bal){
