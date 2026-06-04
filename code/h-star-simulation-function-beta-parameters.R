@@ -8,6 +8,18 @@ f_density = function(u, mu){
   
 }
 
+S_function = function(u, mu){
+  
+  if( ((Delta + 1) <= u) & (u <= (omega)) ){
+    return(sum(sapply(c(u:omega),
+                      f_density,
+                      mu)))
+  } else {
+    return( 0 )
+  }
+  
+}
+
 #link function
 mu = function(eta){
   
@@ -16,9 +28,9 @@ mu = function(eta){
 }
 
 #covariates
-eta = function(xi, beta){
+eta = function(zi, beta){
   
-  return( t(xi) %*% beta )
+  return( t(zi) %*% beta )
   
 }
 
@@ -35,9 +47,9 @@ X_support = c( (Delta + 1) : (omega) )
 Y_support = c( (Delta + 1) : (Delta + m) )
 
 
-alpha = function( g_parameters, xi, beta ){
+alpha = function( g_parameters, zi, beta ){
   
-  X_probs = sapply(X_support, f_density, mu = mu(eta(xi, beta)) )
+  X_probs = sapply(X_support, f_density, mu = mu(eta(zi, beta)) )
   Y_probs = sapply(Y_support, g_density, gv = g_parameters )
   
   return(
@@ -50,7 +62,7 @@ alpha = function( g_parameters, xi, beta ){
 
 
 #needs density functions from likelihood-testing.R
-sim_sample.seed = function(n, omega, Delta, m, beta, gv, x.cov, seed.start = 1){
+sim_sample.seed = function(n, omega, Delta, m, beta, gv, z.cov, seed.start = 1){
   
   #global input to function
   X_support = c( (Delta + 1) : (omega) )
@@ -62,9 +74,9 @@ sim_sample.seed = function(n, omega, Delta, m, beta, gv, x.cov, seed.start = 1){
   for(i in c(1:n)){
     
     #build current version of h-star
-    xi = as.numeric(x.cov[i,])
+    zi = as.numeric(z.cov[i,])
     
-    xpmf <- sapply(X_support, f_density, mu = mu(eta(xi, beta)) )
+    xpmf <- sapply(X_support, f_density, mu = mu(eta(zi, beta)) )
     ypmf <- sapply(Y_support, g_density, gv = gv)
     
     marginal <- list(cumsum(xpmf)[-length(X_support)],
@@ -76,7 +88,7 @@ sim_sample.seed = function(n, omega, Delta, m, beta, gv, x.cov, seed.start = 1){
     
     hInv <- data.frame(x = X_support[col(ind)[ind]],
                        y = Y_support[row(ind)[ind]],
-                       u = cumsum(joint[ind] / alpha(gv, xi, beta)))
+                       u = cumsum(joint[ind] / alpha(gv, zi, beta)))
     
     set.seed(i + n *(seed.start - 1))
     smp <- findInterval(runif(1), hInv$u) + 1
@@ -87,6 +99,6 @@ sim_sample.seed = function(n, omega, Delta, m, beta, gv, x.cov, seed.start = 1){
   
   xy_dat = data.frame("Xi" = Xi, "Yi" = Yi)
   
-  return(cbind(xy_dat, x.cov))
+  return(cbind(xy_dat, z.cov))
   
 }
