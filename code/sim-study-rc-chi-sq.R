@@ -3,7 +3,8 @@
 ######################################################################################
 # Data analysis scripts to reproduce application results in the manuscript:
 # 
-# "Discrete Time-to-Event Regression Analysis Under Left-Truncation"
+# "Discrete Time-to-Event Regression Analysis Under Left-Truncation
+# with Applications to Consumer Finance"
 #
 # LAUTIER, POZDNYAKOV, YAN
 # 2026
@@ -40,10 +41,9 @@
 # supporting files:
 # "./processed-data/aart-2017-37mo.csv
 #
-# './code/h-star-simulation-function-beta-parameters.R')
-# './code/h.star.param.est.R')
-# './code/hessian.std.error.R')
-# './code/binom.p.est.aoas.R'
+# './code/h-dist-cens-simulation-function-beta-parameters.R')
+# './code/censoring.h.star.param.est.R')
+# './code/censoring.hessian.std.error.R')
 #
 #The code must be run sequentially downwards.
 #Results will appear in a newly created 'results' folder.
@@ -70,40 +70,10 @@ rm(list=ls())
 
 #set-up of problem
 
-#density function for lifetime
-f_density = function(u, mu){
-  
-  size = (omega - (Delta + 1) + 1) - 1
-  x = u - (Delta + 1)
-  
-  return( dbinom(x, size, mu) )
-  
-}
-
-#link function
-mu = function(eta){
-  
-  return( exp( eta ) / ( 1 + exp(eta) ) )
-  
-}
-
 #inverse link
 inv.link = function(p.est){
   
   return( -log( 1 / p.est - 1) )
-}
-
-#specific to set-up
-best.p = function(p){
-  
-  
-  v1 = sapply(X = X_support - 1,
-              dbinom,
-              size = (omega - (Delta + 1) + 1) - 1,
-              prob = p)
-  
-  return( sum( (v1 - U_est)^2 ) )
-  
 }
 
 #sample size
@@ -113,22 +83,22 @@ n = 1000
 omega = 8
 Delta = 0
 m = 5
+e = 10
 
 #parameters
 beta.true = c(0.5, 0, 0, 0, 0)
 gv.true = c(0.3, 0.25, 0.2, 0.15, 0.10)
 
 #there is a seed in this sim data formula for reproducibility
-source('./code/h-star-simulation-function-beta-parameters.R')
-source('./code/h.star.param.est.R')
-source('./code/hessian.std.error.R')
-source('./code/binom.p.est.aoas.R')
+source('./code/h-dist-cens-simulation-function-beta-parameters.R')
+source('./code/censoring.h.star.param.est.R')
+source('./code/censoring.hessian.std.error.R')
 
 
 num.reps = 1000
 rep.start = 1
 
-Omega = rep(NA,num.reps)
+Omega = rep(NA,1000)
 
 start_time <- Sys.time()
 for(r in c(rep.start:num.reps)){
@@ -139,38 +109,33 @@ for(r in c(rep.start:num.reps)){
   
   #covariates
   set.seed(r)
-  x.cov = data.frame(x0 = rep(1,n),
-                     x1 = rnorm(n, 0, 0.1),
-                     x2 = rnorm(n, 0, 0.1),
-                     x3 = rnorm(n, 0, 0.1),
-                     x4 = rnorm(n, 0, 0.1))
+  z.cov = data.frame(z0 = rep(1,n),
+                     z1 = rnorm(n, 0, 0.1),
+                     z2 = rnorm(n, 0, 0.1),
+                     z3 = rnorm(n, 0, 0.1),
+                     z4 = rnorm(n, 0, 0.1))
   
   sim.data = sim_sample.seed(n,
                              omega,
                              Delta,
                              m,
+                             e,
                              beta.true,
                              gv.true,
-                             x.cov,
+                             z.cov,
                              seed.start = r)
   
   ##############################################################################
   # [2] estimate unrestricted param MLE
   ##############################################################################
   
-  X.df = cbind("x0" = rep(1,n), sim.data[,c("x1", "x2", "x3", "x4")])
-  X = as.matrix(X.df)
+  Z.df = cbind("z0" = rep(1,n), sim.data[,c("z1", "z2", "z3", "z4")])
+  Z = as.matrix(Z.df)
   J = rep(1, n)
   
   #step 1: get initial values
-  rev_haz_est = sapply(c( (Delta + 1) : (Delta + m)), bnx)
-  G_est = sapply(c((Delta + 1):(Delta + m)), g_est)
-  g.0 = G_est
-  
-  haz_est = sapply(c( (Delta + 1) : omega), lnx)
-  U_est = sapply(c( (Delta + 1) : omega), f_est)
-  
-  p.est = optimize(best.p, c(0,1))$minimum
+  p.est = optimize(P_constraint, c(0,1), tol = 1e-10)$minimum
+  g.0 = mapply(g_tau_hat, c((Delta+1):(m+Delta)), p.est)
   beta.0 = inv.link(p.est)
   
   #step 2: use NR method to get beta estimates
@@ -269,16 +234,17 @@ for(r in c(rep.start:num.reps)){
     w_data = c()
     for(i in c(1:n)){
       w_data = append(w_data,
-                      W_function.star(u = sim.data$Xi[i],
-                                      xi = as.numeric(X.df[i,]),
-                                      theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
+                      W_tau_function.star(u = sim.data$Ti[i],
+                                          d = sim.data$Di[i],
+                                          zi = as.numeric(Z.df[i,]),
+                                          theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
     }
     
     W = diag(w_data)
     
     cur.deriv = c(sapply(c((Delta + 1):(Delta + m - 1)), dl.dgv,
                          theta.est = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)),
-                  t(t(X) %*% W %*% J))
+                  t(t(Z) %*% W %*% J))
     
     THETA.hist[,j] = c(step.g.est, new.beta.est)
     
@@ -314,16 +280,17 @@ for(r in c(rep.start:num.reps)){
     w_data = c()
     for(i in c(1:n)){
       w_data = append(w_data,
-                      W_function.star(u = sim.data$Xi[i],
-                                      xi = as.numeric(X.df[i,]),
-                                      theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
+                      W_tau_function.star(u = sim.data$Ti[i],
+                                          d = sim.data$Di[i],
+                                          zi = as.numeric(Z.df[i,]),
+                                          theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
     }
     
     W = diag(w_data)
     
     cur.deriv = c(sapply(c((Delta + 1):(Delta + m - 1)), dl.dgv,
                          theta.est = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)),
-                  t(t(X) %*% W %*% J))
+                  t(t(Z) %*% W %*% J))
     
     THETA.hist[,j] = c(new.g.est, step.beta.est)
     
@@ -337,7 +304,7 @@ for(r in c(rep.start:num.reps)){
     #print( cur.deriv )
     
   }
-  
+  ################################################################STOPPING POINT
   idx = min(which(is.na(THETA.hist[1,]))) - 1
   
   theta.est = THETA.hist[,idx]
@@ -347,18 +314,38 @@ for(r in c(rep.start:num.reps)){
   ##############################################################################
   
   L = c()
+  data = sim.data
   
-  for(i in c(1:n)){
+  D.0 = data[data$Di == 0,]
+  D.1 = data[data$Di == 1,]
+  
+  for(i in c(1:(nrow(D.0)))){
     
-    cXi = sim.data[i, "Xi"]
-    cYi = sim.data[i, "Yi"]
-    cxi = c(1, 
-            sim.data[i, "x1"],
-            sim.data[i, "x2"],
-            sim.data[i, "x3"],
-            sim.data[i, "x4"])
+    cTi = D.0[i, "Ti"]
+    cYi = D.0[i, "Yi"]
+    czi = c(1, 
+            D.0[i, "z1"],
+            D.0[i, "z2"],
+            D.0[i, "z3"],
+            D.0[i, "z4"])
     
-    L = append(L, log( h_star(cXi, cYi, cxi,
+    L = append(L, log( h_bar(cTi, cYi, czi,
+                             gv = theta.est[1:5],
+                             beta = theta.est[6:10]) ) )
+    
+  }
+  
+  for(i in c(1:(nrow(D.1)))){
+    
+    cTi = D.1[i, "Ti"]
+    cYi = D.1[i, "Yi"]
+    czi = c(1, 
+            D.1[i, "z1"],
+            D.1[i, "z2"],
+            D.1[i, "z3"],
+            D.1[i, "z4"])
+    
+    L = append(L, log( h_star(cTi, cYi, czi,
                               gv = theta.est[1:5],
                               beta = theta.est[6:10]) ) )
     
@@ -370,15 +357,8 @@ for(r in c(rep.start:num.reps)){
   # [4] estimate restricted param MLE (AOAS)
   ##############################################################################
   
-  #observed data
-  obs_data = data.frame(
-    "Yi" = sim.data$Yi,
-    "Xi" = sim.data$Xi
-  )
-  
   p_hat = optimize(P_constraint, c(0,1), tol = 1e-10)$minimum
   G_hat = mapply(g_tau_hat, c((Delta+1):(m+Delta)), p_hat)
-  
   theta.est.0 = c(p_hat, G_hat)
   
   ##############################################################################
@@ -386,15 +366,23 @@ for(r in c(rep.start:num.reps)){
   ##############################################################################
   
   Li = c()
-  for(k in c((Delta + 1):(Delta + m))){
-    for(j in c(k:(omega))){
-      cnt = sum(( (obs_data$Yi == k ) & (obs_data$Xi == j) ))
-      val = ( f_X.aoas(j, theta.est.0) * g_Y.aoas(k, theta.est.0) ) / alpha.aoas(theta.est.0)
-      Li = append(Li, cnt * log( val ) )
+  for(i in c(1:n)){
+    
+    if(sim.data$Di[i] == 1){
+      contrib = g_Y.aoas(sim.data$Yi[i], theta.est.0) * f_X.aoas(sim.data$Ti[i], theta.est.0)
+      Li = append(Li, log(contrib))
+    }
+    
+    if(sim.data$Di[i] == 0){
+      contrib = g_Y.aoas(sim.data$Yi[i], theta.est.0) * S_X.aoas(sim.data$Ti[i] + 1, theta.est.0)
+      Li = append(Li, log(contrib))
     }
   }
   
-  ell.0 = sum(Li)
+  n = nrow(sim.data)
+  alp = alpha.aoas(theta.est.0)
+  
+  ell.0 = -n * log(alp) + sum(Li)
   
   ##############################################################################
   # [6] calculate chi-sq test statistic
@@ -406,22 +394,22 @@ for(r in c(rep.start:num.reps)){
   # [7] save results + update user
   ##############################################################################
   
-  write.csv(Omega, "./results/sim-study-results-manu-chi-sq.csv")
+  write.csv(Omega, "./results/cens-sim-study-results-manu-chi-sq.csv")
   
   end_time <- Sys.time()
   elapsed_time <- end_time - start_time
   
-  if( (r/100) %in% c(1:(num.reps/10)) ){
+  if( (r/100) %in% c(1:(num.reps/100)) ){
     print( paste("complete reps: ", r, " of ", num.reps,
                  " ### elapsed time: ", round(elapsed_time, 5), sep = "") )
   }
-
+  
 }
 
 #require('ggplot2')
 #require('extrafont')
 
-ss.results = read.csv("./results/sim-study-results-manu-chi-sq.csv")
+ss.results = read.csv("./results/cens-sim-study-results-manu-chi-sq.csv")
 ss.results = ss.results[,-1]
 
 deg.free = 4 #per sim study set-up
@@ -437,7 +425,7 @@ ggplot(df, aes(x=sim_result)) +
   stat_function(fun = dchisq, args = list(df = deg.free)) +
   #xlab(TeX(("$\\sqrt{ n }(\\hat{p}_n - p_0)$"))) +
   xlab(
-    expression( Omega [italic(n)]
+    expression( Omega [' '*tau*', '*italic(n)]
                 ~ ' (dashed) versus ' ~
                   chi^2
                 ~ ' distribution (solid)' )) +
@@ -450,4 +438,4 @@ ggplot(df, aes(x=sim_result)) +
         legend.text=element_text(size=10, family="Times New Roman"),
         legend.position = "bottom")
 
-ggsave("./results/chi-sq-sim.pdf",height=4,width=6,device = cairo_pdf)
+ggsave("./manuscript/chi-sq-sim-cens.pdf",height=4,width=6,device = cairo_pdf)

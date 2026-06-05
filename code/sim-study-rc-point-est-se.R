@@ -3,7 +3,8 @@
 ######################################################################################
 # Data analysis scripts to reproduce application results in the manuscript:
 # 
-# "Discrete Time-to-Event Regression Analysis Under Left-Truncation"
+# "Discrete Time-to-Event Regression Analysis Under Left-Truncation
+# with Applications to Consumer Finance"
 #
 # LAUTIER, POZDNYAKOV, YAN
 # 2026
@@ -40,9 +41,9 @@
 # supporting files:
 # "./processed-data/aart-2017-37mo.csv
 #
-# './code/h-star-simulation-function-beta-parameters.R')
-# './code/h.star.param.est.R')
-# './code/hessian.std.error.R')
+# './code/h-dist-cens-simulation-function-beta-parameters.R')
+# './code/censoring.h.star.param.est.R')
+# './code/censoring.hessian.std.error.R')
 #
 #The code must be run sequentially downwards.
 #Results will appear in a newly created 'results' folder.
@@ -67,40 +68,10 @@ rm(list=ls())
 
 #set-up of problem
 
-#density function for lifetime
-f_density = function(u, mu){
-  
-  size = (omega - (Delta + 1) + 1) - 1
-  x = u - (Delta + 1)
-  
-  return( dbinom(x, size, mu) )
-  
-}
-
-#link function
-mu = function(eta){
-  
-  return( exp( eta ) / ( 1 + exp(eta) ) )
-  
-}
-
 #inverse link
 inv.link = function(p.est){
   
   return( -log( 1 / p.est - 1) )
-}
-
-#specific to set-up
-best.p = function(p){
-  
-  
-  v1 = sapply(X = X_support - 1,
-              dbinom,
-              size = (omega - (Delta + 1) + 1) - 1,
-              prob = p)
-  
-  return( sum( (v1 - U_est)^2 ) )
-  
 }
 
 #sample size
@@ -108,22 +79,23 @@ n = 1000
 
 #trapezoid
 omega = 12
-Delta = 0
+Delta = 2
 m = 8
+e = 15
 
 #parameters
 beta.true = c(0.5, 0.5, 1, -1.5, -0.5)
 gv.true = c(0.3, 0.2, 0.13, 0.10, 0.09, 0.07, 0.06, 0.05)
 
 #there is a seed in this sim data formula for reproducibility
-source('./code/h-star-simulation-function-beta-parameters.R')
-source('./code/h.star.param.est.R')
-source('./code/hessian.std.error.R')
+source('./code/h-dist-cens-simulation-function-beta-parameters.R')
+source('./code/censoring.h.star.param.est.R')
+source('./code/censoring.hessian.std.error.R')
 
 num.reps = 1000
 res.mat = matrix(NA, nrow = num.reps, ncol = 2 * (length(c(beta.true, gv.true)) - 1))
 
-rep.start = 1
+rep.start = 1 
 
 start_time <- Sys.time()
 for(r in c(rep.start:num.reps)){
@@ -134,36 +106,30 @@ for(r in c(rep.start:num.reps)){
   
   #covariates
   set.seed(r)
-  x.cov = data.frame(x0 = rep(1,n),
-                     x1 = rnorm(n, 0, 0.1),
-                     x2 = rnorm(n, 0, 0.1),
-                     x3 = rnorm(n, 0, 0.1),
-                     x4 = rnorm(n, 0, 0.1))
+  z.cov = data.frame(z0 = rep(1,n),
+                     z1 = rnorm(n, 0, 0.1),
+                     z2 = rnorm(n, 0, 0.1),
+                     z3 = rnorm(n, 0, 0.1),
+                     z4 = rnorm(n, 0, 0.1))
   
-  sim.data = sim_sample.seed(n, omega, Delta, m, beta.true, gv.true, x.cov, seed.start = r)
+  sim.data = sim_sample.seed(n, omega, Delta, m, e, beta.true, gv.true, z.cov, seed.start = r)
   
   ##############################################################################
   #parameter estimation
   ##############################################################################
   
-  X.df = cbind("x0" = rep(1,n), sim.data[,c("x1", "x2", "x3", "x4")])
-  X = as.matrix(X.df)
+  Z.df = cbind("z0" = rep(1,n), sim.data[,c("z1", "z2", "z3", "z4")])
+  Z = as.matrix(Z.df)
   J = rep(1, n)
   
   #step 1: get initial values
-  rev_haz_est = sapply(c( (Delta + 1) : (Delta + m)), bnx)
-  G_est = sapply(c((Delta + 1):(Delta + m)), g_est)
-  g.0 = G_est
-  
-  haz_est = sapply(c( (Delta + 1) : omega), lnx)
-  U_est = sapply(c( (Delta + 1) : omega), f_est)
-  
-  p.est = optimize(best.p, c(0,1))$minimum
+  p.est = optimize(P_constraint, c(0,1), tol = 1e-10)$minimum
+  g.0 = mapply(g_tau_hat, c((Delta+1):(m+Delta)), p.est)
   beta.0 = inv.link(p.est)
   
   #step 2: use NR method to get beta estimates
   gv = g.0 
-  B0 = c(beta.0, rep(0,length(beta.true)-1))
+  B0 = c(beta.0, rep(0, ncol(Z) - 1))
   
   B.hist = matrix(NA, nrow = length(B0), ncol = 200)
   B.hist[,1] = B0
@@ -257,16 +223,17 @@ for(r in c(rep.start:num.reps)){
     w_data = c()
     for(i in c(1:n)){
       w_data = append(w_data,
-                      W_function.star(u = sim.data$Xi[i],
-                                      xi = as.numeric(X.df[i,]),
-                                      theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
+                      W_tau_function.star(u = sim.data$Ti[i],
+                                          d = sim.data$Di[i],
+                                          zi = as.numeric(Z.df[i,]),
+                                          theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
     }
     
     W = diag(w_data)
     
     cur.deriv = c(sapply(c((Delta + 1):(Delta + m - 1)), dl.dgv,
                          theta.est = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)),
-                  t(t(X) %*% W %*% J))
+                  t(t(Z) %*% W %*% J))
     
     THETA.hist[,j] = c(step.g.est, new.beta.est)
     
@@ -302,16 +269,17 @@ for(r in c(rep.start:num.reps)){
     w_data = c()
     for(i in c(1:n)){
       w_data = append(w_data,
-                      W_function.star(u = sim.data$Xi[i],
-                                      xi = as.numeric(X.df[i,]),
-                                      theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
+                      W_tau_function.star(u = sim.data$Ti[i],
+                                          d = sim.data$Di[i],
+                                          zi = as.numeric(Z.df[i,]),
+                                          theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
     }
     
     W = diag(w_data)
     
     cur.deriv = c(sapply(c((Delta + 1):(Delta + m - 1)), dl.dgv,
                          theta.est = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)),
-                  t(t(X) %*% W %*% J))
+                  t(t(Z) %*% W %*% J))
     
     THETA.hist[,j] = c(new.g.est, step.beta.est)
     
@@ -325,7 +293,7 @@ for(r in c(rep.start:num.reps)){
     #print( cur.deriv )
     
   }
-  
+  ################################################################STOPPING POINT
   idx = min(which(is.na(THETA.hist[1,]))) - 1
   
   theta.est = THETA.hist[,idx]
@@ -338,21 +306,29 @@ for(r in c(rep.start:num.reps)){
   #standard error estimation
   ##############################################################################
   
-  B = matrix(NA, nrow = (length(Y_support) - 1), ncol = (length(Y_support) - 1))
-  for(v in Y_support[1:(m-1)]){
-    for(v.star in Y_support[1:(m-1)]){
-      b = c()
-      for(i in c(1:nrow(sim.data))){
-        
-        b = append(b,
-                   B_function.star(v, v.star,
-                                   theta = theta.est[-length(gv.true)],
-                                   yi = sim.data$Yi[i],
-                                   xi = as.numeric(X.df[i,])))
-        
-      }
-      B[v,v.star] = sum(b)
-    }
+  # B = matrix(NA, nrow = (length(Y_support) - 1), ncol = (length(Y_support) - 1))
+  # for(v in Y_support[1:(m-1)]){
+  #   for(v.star in Y_support[1:(m-1)]){
+  #     b = c()
+  #     for(i in c(1:nrow(sim.data))){
+  #       
+  #       b = append(b,
+  #                  B_function.star(v, v.star,
+  #                                  theta = theta.est[-length(gv.true)],
+  #                                  yi = sim.data$Yi[i],
+  #                                  zi = as.numeric(Z.df[i,])))
+  #       
+  #     }
+  #     B[v,v.star] = sum(b)
+  #   }
+  # }
+  B = matrix(0, nrow = length(Y_support) - 1, ncol = length(Y_support) - 1)
+  for(i in c(1:nrow(sim.data))){
+    
+    B = B + B_function.star(theta = theta.est[-length(gv.true)],
+                            yi = sim.data$Yi[i],
+                            zi = as.numeric(Z.df[i,]))
+    
   }
   
   #check
@@ -360,49 +336,64 @@ for(r in c(rep.start:num.reps)){
   #colnames(B) = c("g1", "g2")
   #B
   
-  z_data = c()
+  a_data = c()
   for(i in c(1:n)){
-    z_data = append(z_data,
-                    Z_function.star(u = sim.data$Xi[i],
-                                    xi = as.numeric(X.df[i,]),
-                                    theta = theta.est[-length(gv.true)]))
+    a_data = append(a_data,
+                    A_tau_function.star(u = sim.data$Ti[i],
+                                        d = sim.data$Di[i],
+                                        zi = as.numeric(Z.df[i,]),
+                                        theta = theta.est[-length(gv.true)]))
   }
   
-  Z = diag(z_data)
+  A = diag(a_data)
   
   #check
   #t(X) %*% Z %*% X
   
+  # dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.true))
+  # #colnames(dl.dgv.db) = c("b0", "b1", "b2")
+  # #rownames(dl.dgv.db) = c("g1", "g2")
+  # 
+  # for(v in c( (Delta + 1):(Delta + m - 1)) ){
+  #   
+  #   d_data = c()
+  #   for(i in c(1:n)){
+  #     d_data = append(d_data,
+  #                     D_function.star(v = v,
+  #                                     zi = as.numeric(Z.df[i,]),
+  #                                     theta = theta.est[-length(gv.true)]))
+  #   }
+  #   
+  #   D = diag(d_data)
+  #   
+  #   dl.dgv.db[(v - Delta), ] = t(J) %*% D %*% Z
+  #   
+  # }
+  D = matrix(NA, nrow = n, ncol = length(Y_support) - 1)
+  for(i in c(1:n)){
+    
+    D[i,] = D_function.star(theta = theta.est[-length(gv.true)],
+                            zi = as.numeric(Z.df[i,]))
+    
+  }
   dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.true))
-  #colnames(dl.dgv.db) = c("b0", "b1", "b2")
-  #rownames(dl.dgv.db) = c("g1", "g2")
-  
   for(v in c( (Delta + 1):(Delta + m - 1)) ){
     
-    a_data = c()
-    for(i in c(1:n)){
-      a_data = append(a_data,
-                      A_function.star(v = v,
-                                      xi = as.numeric(X.df[i,]),
-                                      theta = theta.est[-length(gv.true)]))
-    }
+    D.star = diag(D[,v - Delta])
     
-    A = diag(a_data)
-    
-    dl.dgv.db[(v - Delta), ] = t(J) %*% A %*% X
-    
+    dl.dgv.db[(v - Delta), ] = t(J) %*% D.star %*% Z
   }
   
   #formulaic hessian
   H = cbind(rbind(B, t(dl.dgv.db)),
-            rbind(dl.dgv.db, t(X) %*% Z %*% X))
+            rbind(dl.dgv.db, t(Z) %*% A %*% Z))
   
   colnames(H) <- NULL
   rownames(H) <- NULL
   
   res.mat[r, ] = c(theta.est[-length(gv.true)], diag(solve(-H)))
   
-  write.csv(res.mat, "./results/sim-study-results-manu.csv")
+  write.csv(res.mat, "./results/sim-study-results-rc-manu.csv")
   
   end_time <- Sys.time()
   elapsed_time <- end_time - start_time
@@ -416,7 +407,7 @@ for(r in c(rep.start:num.reps)){
 
 #summarize results
 
-ss.results = read.csv("./results/sim-study-results-manu.csv")
+ss.results = read.csv("./results/sim-study-results-rc-manu.csv")
 
 ss.results = ss.results[,-1]
 
@@ -492,56 +483,52 @@ cp = c()
 
 ci.low = ss.results$g1 - qnorm(0.975) * sqrt(ss.results$se.g1)
 ci.high = ss.results$g1 + qnorm(0.975) * sqrt(ss.results$se.g1)
-cp = append(cp, sum( (gv.true[1] > ci.low) & (gv.true[1] < ci.high) ) / num.reps)
+cp = append(cp, sum( (gv.true[1] > ci.low) & (gv.true[1] < ci.high) ) / 1000)
 
 ci.low = ss.results$g2 - qnorm(0.975) * sqrt(ss.results$se.g2)
 ci.high = ss.results$g2 + qnorm(0.975) * sqrt(ss.results$se.g2)
-cp = append(cp, sum( (gv.true[2] > ci.low) & (gv.true[2] < ci.high) ) / num.reps)
+cp = append(cp, sum( (gv.true[2] > ci.low) & (gv.true[2] < ci.high) ) / 1000)
 
 ci.low = ss.results$g3 - qnorm(0.975) * sqrt(ss.results$se.g3)
 ci.high = ss.results$g3 + qnorm(0.975) * sqrt(ss.results$se.g3)
-cp = append(cp, sum( (gv.true[3] > ci.low) & (gv.true[3] < ci.high) ) / num.reps)
+cp = append(cp, sum( (gv.true[3] > ci.low) & (gv.true[3] < ci.high) ) / 1000)
 
 ci.low = ss.results$g4 - qnorm(0.975) * sqrt(ss.results$se.g4)
 ci.high = ss.results$g4 + qnorm(0.975) * sqrt(ss.results$se.g4)
-cp = append(cp, sum( (gv.true[4] > ci.low) & (gv.true[4] < ci.high) ) / num.reps)
+cp = append(cp, sum( (gv.true[4] > ci.low) & (gv.true[4] < ci.high) ) / 1000)
 
 ci.low = ss.results$g5 - qnorm(0.975) * sqrt(ss.results$se.g5)
 ci.high = ss.results$g5 + qnorm(0.975) * sqrt(ss.results$se.g5)
-cp = append(cp, sum( (gv.true[5] > ci.low) & (gv.true[5] < ci.high) ) / num.reps)
+cp = append(cp, sum( (gv.true[5] > ci.low) & (gv.true[5] < ci.high) ) / 1000)
 
 ci.low = ss.results$g6 - qnorm(0.975) * sqrt(ss.results$se.g6)
 ci.high = ss.results$g6 + qnorm(0.975) * sqrt(ss.results$se.g6)
-cp = append(cp, sum( (gv.true[6] > ci.low) & (gv.true[6] < ci.high) ) / num.reps)
+cp = append(cp, sum( (gv.true[6] > ci.low) & (gv.true[6] < ci.high) ) / 1000)
 
 ci.low = ss.results$g7 - qnorm(0.975) * sqrt(ss.results$se.g7)
 ci.high = ss.results$g7 + qnorm(0.975) * sqrt(ss.results$se.g7)
-cp = append(cp, sum( (gv.true[7] > ci.low) & (gv.true[7] < ci.high) ) / num.reps)
+cp = append(cp, sum( (gv.true[7] > ci.low) & (gv.true[7] < ci.high) ) / 1000)
 
 ci.low = ss.results$b0 - qnorm(0.975) * sqrt(ss.results$se.b0)
 ci.high = ss.results$b0 + qnorm(0.975) * sqrt(ss.results$se.b0)
-cp = append(cp, sum( (beta.true[1] > ci.low) & (beta.true[1] < ci.high) ) / num.reps)
+cp = append(cp, sum( (beta.true[1] > ci.low) & (beta.true[1] < ci.high) ) / 1000)
 
 ci.low = ss.results$b1 - qnorm(0.975) * sqrt(ss.results$se.b1)
 ci.high = ss.results$b1 + qnorm(0.975) * sqrt(ss.results$se.b1)
-cp = append(cp, sum( (beta.true[2] > ci.low) & (beta.true[2] < ci.high) ) / num.reps)
+cp = append(cp, sum( (beta.true[2] > ci.low) & (beta.true[2] < ci.high) ) / 1000)
 
 ci.low = ss.results$b2 - qnorm(0.975) * sqrt(ss.results$se.b2)
 ci.high = ss.results$b2 + qnorm(0.975) * sqrt(ss.results$se.b2)
-cp = append(cp, sum( (beta.true[3] > ci.low) & (beta.true[3] < ci.high) ) / num.reps)
+cp = append(cp, sum( (beta.true[3] > ci.low) & (beta.true[3] < ci.high) ) / 1000)
 
 ci.low = ss.results$b3 - qnorm(0.975) * sqrt(ss.results$se.b3)
 ci.high = ss.results$b3 + qnorm(0.975) * sqrt(ss.results$se.b3)
-cp = append(cp, sum( (beta.true[4] > ci.low) & (beta.true[4] < ci.high) ) / num.reps)
+cp = append(cp, sum( (beta.true[4] > ci.low) & (beta.true[4] < ci.high) ) / 1000)
 
 ci.low = ss.results$b4 - qnorm(0.975) * sqrt(ss.results$se.b4)
 ci.high = ss.results$b4 + qnorm(0.975) * sqrt(ss.results$se.b4)
-cp = append(cp, sum( (beta.true[5] > ci.low) & (beta.true[5] < ci.high) ) / num.reps)
+cp = append(cp, sum( (beta.true[5] > ci.low) & (beta.true[5] < ci.high) ) / 1000)
 
 manu.table$cp = cp
 
 manu.table
-
-
-
-

@@ -3,7 +3,8 @@
 ######################################################################################
 # Data analysis scripts to reproduce application results in the manuscript:
 # 
-# "Discrete Time-to-Event Regression Analysis Under Left-Truncation"
+# "Discrete Time-to-Event Regression Analysis Under Left-Truncation
+# with Applications to Consumer Finance"
 #
 # LAUTIER, POZDNYAKOV, YAN
 # 2026
@@ -29,7 +30,7 @@
 ######################################################################################
 ######################################################################################
 #
-# RUN-TIME WARNING: may exceed 10 hours for 1000 reps depending on computing power
+# RUN-TIME WARNING: may exceed 10 hours for 1,000 reps depending on computing power
 #
 ######################################################################################
 ######################################################################################
@@ -43,6 +44,7 @@
 # './code/h-star-simulation-function-beta-parameters.R')
 # './code/h.star.param.est.R')
 # './code/hessian.std.error.R')
+# './code/binom.p.est.aoas.R'
 #
 #The code must be run sequentially downwards.
 #Results will appear in a newly created 'results' folder.
@@ -53,6 +55,8 @@
 ######################################################################################
 ######################################################################################
 
+require('ggplot2')
+require('extrafont')
 
 ######################################################################################
 ######################################################################################
@@ -107,29 +111,31 @@ best.p = function(p){
 n = 1000
 
 #trapezoid
-omega = 12
+omega = 8
 Delta = 0
-m = 8
+m = 5
 
 #parameters
-beta.true = c(0.5, 0.5, 1, -1.5, -0.5)
-gv.true = c(0.3, 0.2, 0.13, 0.10, 0.09, 0.07, 0.06, 0.05)
+beta.true = c(0.5, 0, 0, 0, 0)
+gv.true = c(0.3, 0.25, 0.2, 0.15, 0.10)
 
 #there is a seed in this sim data formula for reproducibility
 source('./code/h-star-simulation-function-beta-parameters.R')
 source('./code/h.star.param.est.R')
 source('./code/hessian.std.error.R')
+source('./code/binom.p.est.aoas.R')
+
 
 num.reps = 1000
-res.mat = matrix(NA, nrow = num.reps, ncol = 2 * (length(c(beta.true, gv.true)) - 1))
-
 rep.start = 1
+
+Omega = rep(NA,num.reps)
 
 start_time <- Sys.time()
 for(r in c(rep.start:num.reps)){
   
   ##############################################################################
-  #generate random sample
+  # [1] generate random sample when H0 is true
   ##############################################################################
   
   #covariates
@@ -140,10 +146,17 @@ for(r in c(rep.start:num.reps)){
                      z3 = rnorm(n, 0, 0.1),
                      z4 = rnorm(n, 0, 0.1))
   
-  sim.data = sim_sample.seed(n, omega, Delta, m, beta.true, gv.true, z.cov, seed.start = r)
+  sim.data = sim_sample.seed(n,
+                             omega,
+                             Delta,
+                             m,
+                             beta.true,
+                             gv.true,
+                             z.cov,
+                             seed.start = r)
   
   ##############################################################################
-  #parameter estimation
+  # [2] estimate unrestricted param MLE
   ##############################################################################
   
   Z.df = cbind("z0" = rep(1,n), sim.data[,c("z1", "z2", "z3", "z4")])
@@ -330,102 +343,71 @@ for(r in c(rep.start:num.reps)){
   
   theta.est = THETA.hist[,idx]
   
-  #end_time <- Sys.time()
-  #elapsed_time <- end_time - start_time
-  #print(elapsed_time)
-  
   ##############################################################################
-  #standard error estimation
+  # [3] calculate unrestricted likelihood
   ##############################################################################
   
-  # B = matrix(NA, nrow = (length(Y_support) - 1), ncol = (length(Y_support) - 1))
-  # for(v in Y_support[1:(m-1)]){
-  #   for(v.star in Y_support[1:(m-1)]){
-  #     b = c()
-  #     for(i in c(1:nrow(sim.data))){
-  #       
-  #       b = append(b,
-  #                  B_function.star(v, v.star,
-  #                                  theta = theta.est[-length(gv.true)],
-  #                                  yi = sim.data$Yi[i],
-  #                                  xi = as.numeric(X.df[i,])))
-  #       
-  #     }
-  #     B[v,v.star] = sum(b)
-  #   }
-  # }
-  B = matrix(0, nrow = length(Y_support) - 1, ncol = length(Y_support) - 1)
-  for(i in c(1:nrow(sim.data))){
-    
-    B = B + B_function.star(theta = theta.est[-length(gv.true)],
-                            yi = sim.data$Yi[i],
-                            zi = as.numeric(Z.df[i,]))
-    
-  }
+  L = c()
   
-  #check
-  #rownames(B) = c("g1", "g2")
-  #colnames(B) = c("g1", "g2")
-  #B
-  
-  a_data = c()
-  for(i in c(1:n)){
-    a_data = append(a_data,
-                    A_function.star(u = sim.data$Xi[i],
-                                    zi = as.numeric(Z.df[i,]),
-                                    theta = theta.est[-length(gv.true)]))
-  }
-  
-  A = diag(a_data)
-  
-  #check
-  #t(X) %*% Z %*% X
-  
-  #dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.true))
-  #colnames(dl.dgv.db) = c("b0", "b1", "b2")
-  #rownames(dl.dgv.db) = c("g1", "g2")
-  
-  # for(v in c( (Delta + 1):(Delta + m - 1)) ){
-  #   
-  #   a_data = c()
-  #   for(i in c(1:n)){
-  #     a_data = append(a_data,
-  #                     A_function.star(v = v,
-  #                                     xi = as.numeric(X.df[i,]),
-  #                                     theta = theta.est[-length(gv.true)]))
-  #   }
-  #   
-  #   A = diag(a_data)
-  #   
-  #   dl.dgv.db[(v - Delta), ] = t(J) %*% A %*% X
-  #   
-  # }
-  
-  D = matrix(NA, nrow = n, ncol = length(Y_support) - 1)
   for(i in c(1:n)){
     
-    D[i,] = D_function.star(theta = theta.est[-length(gv.true)],
-                            zi = as.numeric(Z.df[i,]))
+    cXi = sim.data[i, "Xi"]
+    cYi = sim.data[i, "Yi"]
+    czi = c(1, 
+            sim.data[i, "z1"],
+            sim.data[i, "z2"],
+            sim.data[i, "z3"],
+            sim.data[i, "z4"])
+    
+    L = append(L, log( h_star(cXi, cYi, czi,
+                              gv = theta.est[1:5],
+                              beta = theta.est[6:10]) ) )
     
   }
-  dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.true))
-  for(v in c( (Delta + 1):(Delta + m - 1)) ){
-    
-    D.star = diag(D[,v - Delta])
-    
-    dl.dgv.db[(v - Delta), ] = t(J) %*% D.star %*% Z
+  
+  ell.1 = sum(L)
+  
+  ##############################################################################
+  # [4] estimate restricted param MLE (AOAS)
+  ##############################################################################
+  
+  #observed data
+  obs_data = data.frame(
+    "Yi" = sim.data$Yi,
+    "Xi" = sim.data$Xi
+  )
+  
+  p_hat = optimize(P_constraint, c(0,1), tol = 1e-10)$minimum
+  G_hat = mapply(g_tau_hat, c((Delta+1):(m+Delta)), p_hat)
+  
+  theta.est.0 = c(p_hat, G_hat)
+  
+  ##############################################################################
+  # [5] calculate restricted likelihood
+  ##############################################################################
+  
+  Li = c()
+  for(k in c((Delta + 1):(Delta + m))){
+    for(j in c(k:(omega))){
+      cnt = sum(( (obs_data$Yi == k ) & (obs_data$Xi == j) ))
+      val = ( f_X.aoas(j, theta.est.0) * g_Y.aoas(k, theta.est.0) ) / alpha.aoas(theta.est.0)
+      Li = append(Li, cnt * log( val ) )
+    }
   }
   
-  #formulaic hessian
-  H = cbind(rbind(B, t(dl.dgv.db)),
-            rbind(dl.dgv.db, t(Z) %*% A %*% Z))
+  ell.0 = sum(Li)
   
-  colnames(H) <- NULL
-  rownames(H) <- NULL
+  ##############################################################################
+  # [6] calculate chi-sq test statistic
+  ##############################################################################
   
-  res.mat[r, ] = c(theta.est[-length(gv.true)], diag(solve(-H)))
+  Omega[r] = -2 * (ell.0 - ell.1)
   
-  write.csv(res.mat, "./results/sim-study-results-manu.csv")
+  ##############################################################################
+  # [7] save results + update user
+  ##############################################################################
+  
+  write.csv(Omega, "./results/sim-study-results-manu-chi-sq.csv")
   
   end_time <- Sys.time()
   elapsed_time <- end_time - start_time
@@ -434,133 +416,55 @@ for(r in c(rep.start:num.reps)){
     print( paste("complete reps: ", r, " of ", num.reps,
                  " ### elapsed time: ", round(elapsed_time, 5), sep = "") )
   }
-  
+
 }
 
-#summarize results
+#require('ggplot2')
+#require('extrafont')
 
-ss.results = read.csv("./results/sim-study-results-manu.csv")
-
+ss.results = read.csv("./results/sim-study-results-manu-chi-sq.csv")
 ss.results = ss.results[,-1]
 
-# g5 = c()
-# for(i in c(1:1000)){
-#   
-#   g5 = append(g5, 1 - sum( ss.results[i,1:7] ) )
-#   
-# }
-# g6 = ss.results$V5
-# g7 = ss.results$V6
-# 
-# ss.results$V5 = g5
-# ss.results$V6 = g6
-# ss.results$V7 = g7
+deg.free = 4 #per sim study set-up
 
-p.lab = c(paste("g",c(1:7),sep=""),paste("b",c(0:4),sep=""))
-se.lab = paste("se.", p.lab, sep = "")
+#empirical type I error
+sum(ss.results > qchisq(0.95, deg.free)) / length(ss.results)
 
-colnames(ss.results) = c(p.lab, se.lab)
+#plot results
+df = data.frame("sim_result" = ss.results)
 
-beta.true = c(0.5, 0.5, 1, -1.5, -0.5)
-gv.true = c(0.3, 0.2, 0.13, 0.10, 0.09, 0.07, 0.06, 0.05)
-gv.true = gv.true[-length(gv.true)]
+ggplot(df, aes(x=sim_result)) + 
+  geom_density(color = "blue", linetype = "dashed") +
+  stat_function(fun = dchisq, args = list(df = deg.free)) +
+  #xlab(TeX(("$\\sqrt{ n }(\\hat{p}_n - p_0)$"))) +
+  xlab(
+    expression( Omega [italic(n)]
+                ~ ' (dashed) versus ' ~
+                  chi^2
+                ~ ' distribution (solid)' )) +
+  ylab("Density Height") +
+  theme_bw() +
+  theme(axis.title.x=element_text(size=10, family="Times New Roman", face = "italic"),
+        axis.title.y=element_text(size=10, family="Times New Roman"),
+        axis.text.x=element_text(size=10, family="Times New Roman"),
+        axis.text.y=element_text(size=10, family="Times New Roman"),
+        legend.text=element_text(size=10, family="Times New Roman"),
+        legend.position = "bottom")
 
-manu.table = data.frame("true" = c(gv.true, beta.true))
+ggsave("./results/chi-sq-sim.pdf",height=4,width=6,device = cairo_pdf)
+#note: figure no longer appears in manuscript due to space constraints
 
-manu.table$eBias = abs( colMeans(ss.results)[1:length(p.lab)] - c(gv.true, beta.true) )
+#percentile table for manuscript
+percentiles <- c(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
 
-# var(ss.results$g1); mean(ss.results$se.g1)
-# var(ss.results$g2); mean(ss.results$se.g2)
-# var(ss.results$g3); mean(ss.results$se.g3)
-# var(ss.results$g4); mean(ss.results$se.g4)
-# var(ss.results$g5); mean(ss.results$se.g5)
-# var(ss.results$g6); mean(ss.results$se.g6)
-# var(ss.results$g7); mean(ss.results$se.g7)
-# var(ss.results$b0); mean(ss.results$se.b0)
-# var(ss.results$b1); mean(ss.results$se.b1)
-# var(ss.results$b2); mean(ss.results$se.b2)
-# var(ss.results$b3); mean(ss.results$se.b3)
-# var(ss.results$b4); mean(ss.results$se.b4)
+# Calculate empirical percentiles
+emp.percentiles <- quantile(df$sim_result,
+                            probs = percentiles,
+                            type = 4, 
+                            na.rm = FALSE)
 
-manu.table$eSE = c(sd(ss.results$g1),
-                   sd(ss.results$g2),
-                   sd(ss.results$g3),
-                   sd(ss.results$g4),
-                   sd(ss.results$g5),
-                   sd(ss.results$g6),
-                   sd(ss.results$g7),
-                   sd(ss.results$b0),
-                   sd(ss.results$b1),
-                   sd(ss.results$b2),
-                   sd(ss.results$b3),
-                   sd(ss.results$b4))
+tru.percentiles <- sapply(percentiles, qchisq, df = deg.free)
 
-manu.table$Thm21 = c(mean( sqrt(ss.results$se.g1)),
-                     mean( sqrt(ss.results$se.g2)),
-                     mean( sqrt(ss.results$se.g3)),
-                     mean( sqrt(ss.results$se.g4)),
-                     mean( sqrt(ss.results$se.g5)),
-                     mean( sqrt(ss.results$se.g6)),
-                     mean( sqrt(ss.results$se.g7)),
-                     mean( sqrt(ss.results$se.b0)),
-                     mean( sqrt(ss.results$se.b1)),
-                     mean( sqrt(ss.results$se.b2)),
-                     mean( sqrt(ss.results$se.b3)),
-                     mean( sqrt(ss.results$se.b4)))
-
-boxplot(ss.results[,1:length(p.lab)])
-
-#coverage probabilities
-cp = c()
-
-ci.low = ss.results$g1 - qnorm(0.975) * sqrt(ss.results$se.g1)
-ci.high = ss.results$g1 + qnorm(0.975) * sqrt(ss.results$se.g1)
-cp = append(cp, sum( (gv.true[1] > ci.low) & (gv.true[1] < ci.high) ) / num.reps)
-
-ci.low = ss.results$g2 - qnorm(0.975) * sqrt(ss.results$se.g2)
-ci.high = ss.results$g2 + qnorm(0.975) * sqrt(ss.results$se.g2)
-cp = append(cp, sum( (gv.true[2] > ci.low) & (gv.true[2] < ci.high) ) / num.reps)
-
-ci.low = ss.results$g3 - qnorm(0.975) * sqrt(ss.results$se.g3)
-ci.high = ss.results$g3 + qnorm(0.975) * sqrt(ss.results$se.g3)
-cp = append(cp, sum( (gv.true[3] > ci.low) & (gv.true[3] < ci.high) ) / num.reps)
-
-ci.low = ss.results$g4 - qnorm(0.975) * sqrt(ss.results$se.g4)
-ci.high = ss.results$g4 + qnorm(0.975) * sqrt(ss.results$se.g4)
-cp = append(cp, sum( (gv.true[4] > ci.low) & (gv.true[4] < ci.high) ) / num.reps)
-
-ci.low = ss.results$g5 - qnorm(0.975) * sqrt(ss.results$se.g5)
-ci.high = ss.results$g5 + qnorm(0.975) * sqrt(ss.results$se.g5)
-cp = append(cp, sum( (gv.true[5] > ci.low) & (gv.true[5] < ci.high) ) / num.reps)
-
-ci.low = ss.results$g6 - qnorm(0.975) * sqrt(ss.results$se.g6)
-ci.high = ss.results$g6 + qnorm(0.975) * sqrt(ss.results$se.g6)
-cp = append(cp, sum( (gv.true[6] > ci.low) & (gv.true[6] < ci.high) ) / num.reps)
-
-ci.low = ss.results$g7 - qnorm(0.975) * sqrt(ss.results$se.g7)
-ci.high = ss.results$g7 + qnorm(0.975) * sqrt(ss.results$se.g7)
-cp = append(cp, sum( (gv.true[7] > ci.low) & (gv.true[7] < ci.high) ) / num.reps)
-
-ci.low = ss.results$b0 - qnorm(0.975) * sqrt(ss.results$se.b0)
-ci.high = ss.results$b0 + qnorm(0.975) * sqrt(ss.results$se.b0)
-cp = append(cp, sum( (beta.true[1] > ci.low) & (beta.true[1] < ci.high) ) / num.reps)
-
-ci.low = ss.results$b1 - qnorm(0.975) * sqrt(ss.results$se.b1)
-ci.high = ss.results$b1 + qnorm(0.975) * sqrt(ss.results$se.b1)
-cp = append(cp, sum( (beta.true[2] > ci.low) & (beta.true[2] < ci.high) ) / num.reps)
-
-ci.low = ss.results$b2 - qnorm(0.975) * sqrt(ss.results$se.b2)
-ci.high = ss.results$b2 + qnorm(0.975) * sqrt(ss.results$se.b2)
-cp = append(cp, sum( (beta.true[3] > ci.low) & (beta.true[3] < ci.high) ) / num.reps)
-
-ci.low = ss.results$b3 - qnorm(0.975) * sqrt(ss.results$se.b3)
-ci.high = ss.results$b3 + qnorm(0.975) * sqrt(ss.results$se.b3)
-cp = append(cp, sum( (beta.true[4] > ci.low) & (beta.true[4] < ci.high) ) / num.reps)
-
-ci.low = ss.results$b4 - qnorm(0.975) * sqrt(ss.results$se.b4)
-ci.high = ss.results$b4 + qnorm(0.975) * sqrt(ss.results$se.b4)
-cp = append(cp, sum( (beta.true[5] > ci.low) & (beta.true[5] < ci.high) ) / num.reps)
-
-manu.table$cp = cp
-
-manu.table
+manu.df =  data.frame("per" = percentiles,
+                      "emp" = as.numeric(emp.percentiles),
+                      "tru" = as.numeric(tru.percentiles))

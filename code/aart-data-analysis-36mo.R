@@ -3,7 +3,8 @@
 ######################################################################################
 # Data analysis scripts to reproduce application results in the manuscript:
 # 
-# "Discrete Time-to-Event Regression Analysis Under Left-Truncation"
+# "Discrete Time-to-Event Regression Analysis Under Left-Truncation
+# with Applications to Consumer Finance"
 #
 # LAUTIER, POZDNYAKOV, YAN
 # 2026
@@ -38,7 +39,7 @@
 # INSTRUCTIONS
 #
 # supporting files:
-# "./processed-data/aart-2017-37mo.csv
+# "./processed-data/aart-2017-36mo.csv
 #
 # './code/h-star-simulation-function-beta-parameters.R')
 # './code/h.star.param.est.R')
@@ -66,11 +67,15 @@ dir.create('./results/')
 
 ################################################################################
 
+######################################################################################
+# 36 MONTHS
+######################################################################################
+
 rm(list=ls())
 
 start_time <- Sys.time()
 
-reg.data = read.csv("./processed-data/aart-2017-37mo.csv")
+reg.data = read.csv("./processed-data/aart-2017-36mo.csv")
 reg.data = reg.data[,-1]
 
 #trapezoid
@@ -143,8 +148,8 @@ sim.data = reg.data
 #parameter estimation
 ##############################################################################
 
-X.df = cbind("x0" = rep(1,n), sim.data[,c(3:ncol(sim.data))])
-X = as.matrix(X.df)
+Z.df = cbind("z0" = rep(1,n), sim.data[,c("z1", "z2", "z3", "z4")])
+Z = as.matrix(Z.df)
 J = rep(1, n)
 
 #step 1: get initial values
@@ -160,7 +165,7 @@ beta.0 = inv.link(p.est)
 
 #step 2: use NR method to get beta estimates
 gv = g.0 
-B0 = c(beta.0, rep(0, ncol(X) - 1))
+B0 = c(beta.0, rep(0,length(beta.true)-1))
 
 B.hist = matrix(NA, nrow = length(B0), ncol = 200)
 B.hist[,1] = B0
@@ -175,8 +180,8 @@ for(i in 2:100){
   if(max(abs(B.hist[,i]-B.hist[,i-1])) < tol){B.est <- B.hist[,i-1]; break}
   else(B.est = B.new)
   
-  print(i)
-  print(B.hist[,1:i])
+  #print(i)
+  #print(B.hist[,1:i])
   
 }
 
@@ -199,8 +204,8 @@ for(i in 2:100){
   if(max(abs(G.hist[,i]-G.hist[,i-1])) < tol){G.est <- G.hist[,i-1]; break}
   else(G.est = G.new)
   
-  print(i)
-  print(G.hist[,1:i])
+  #print(i)
+  #print(G.hist[,1:i])
   
 }
 
@@ -222,10 +227,6 @@ THETA.hist[,1] = c(cur.g.est, cur.beta.est)
 
 step.g.est = cur.g.est
 step.B.est = cur.beta.est
-
-len.g = length(cur.g.est)
-len.B = length(cur.beta.est)
-len.theta = len.g + len.B
 
 for(j in 2:100){
   
@@ -259,25 +260,24 @@ for(j in 2:100){
   for(i in c(1:n)){
     w_data = append(w_data,
                     W_function.star(u = sim.data$Xi[i],
-                                    xi = as.numeric(X.df[i,]),
-                                    theta = c(step.g.est[1:(len.g-1)], new.beta.est)))
+                                    zi = as.numeric(Z.df[i,]),
+                                    theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
   }
   
   W = diag(w_data)
   
   cur.deriv = c(sapply(c((Delta + 1):(Delta + m - 1)), dl.dgv,
-                       theta.est = c(step.g.est[1:(len.g-1)], new.beta.est)),
-                t(t(X) %*% W %*% J))
-  
-  #cur.deriv[is.na(cur.deriv)] = 0
+                       theta.est = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)),
+                t(t(Z) %*% W %*% J))
   
   THETA.hist[,j] = c(step.g.est, new.beta.est)
   
-  if(max(abs(cur.deriv)) < global.tol){step.beta.est <- THETA.hist[c((len.g + 1):len.theta),j-1]; break}
+  if(max(abs(cur.deriv)) < global.tol){
+    step.beta.est <- THETA.hist[c((length(step.g.est)+1):(length(c(cur.g.est, cur.beta.est)))),j-1]; break}
   else(step.beta.est = new.beta.est)
   
   #update g parameters
-  G0 = gv[1:(len.g - 1)]
+  G0 = gv[1:(length(step.g.est)-1)]
   beta.est = step.beta.est
   
   G.hist = matrix(NA, nrow = length(G0), ncol = 200)
@@ -305,28 +305,26 @@ for(j in 2:100){
   for(i in c(1:n)){
     w_data = append(w_data,
                     W_function.star(u = sim.data$Xi[i],
-                                    xi = as.numeric(X.df[i,]),
-                                    theta = c(step.g.est[1:(len.g - 1)], new.beta.est)))
+                                    zi = as.numeric(Z.df[i,]),
+                                    theta = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)))
   }
   
   W = diag(w_data)
   
   cur.deriv = c(sapply(c((Delta + 1):(Delta + m - 1)), dl.dgv,
-                       theta.est = c(step.g.est[1:(len.g - 1)], new.beta.est)),
-                t(t(X) %*% W %*% J))
-  
-  #cur.deriv[is.na(cur.deriv)] = 0
+                       theta.est = c(step.g.est[1:(length(step.g.est)-1)], new.beta.est)),
+                t(t(Z) %*% W %*% J))
   
   THETA.hist[,j] = c(new.g.est, step.beta.est)
   
-  if(max(abs(cur.deriv)) < global.tol){step.g.est <- THETA.hist[c(1:len.g),j-1]; break}
+  if(max(abs(cur.deriv)) < global.tol){step.g.est <- THETA.hist[c(1:(length(step.g.est))),j-1]; break}
   else(step.g.est = new.g.est)
   
   if( sum(abs(THETA.hist[,j-1] - THETA.hist[j])) == 0 ){break}
   
-  print(j)
-  print( THETA.hist[,j] )
-  print( cur.deriv )
+  #print(j)
+  #print( THETA.hist[,j] )
+  #print( cur.deriv )
   
 }
 
@@ -342,21 +340,29 @@ print(elapsed_time)
 #standard error estimation
 ##############################################################################
 
-B = matrix(NA, nrow = (length(Y_support) - 1), ncol = (length(Y_support) - 1))
-for(v in Y_support[1:(m-1)]){
-  for(v.star in Y_support[1:(m-1)]){
-    b = c()
-    for(i in c(1:nrow(sim.data))){
-      
-      b = append(b,
-                 B_function.star(v, v.star,
-                                 theta = theta.est[-len.g],
-                                 yi = sim.data$Yi[i],
-                                 xi = as.numeric(X.df[i,])))
-      
-    }
-    B[(v-Delta),(v.star-Delta)] = sum(b)
-  }
+# B = matrix(NA, nrow = (length(Y_support) - 1), ncol = (length(Y_support) - 1))
+# for(v in Y_support[1:(m-1)]){
+#   for(v.star in Y_support[1:(m-1)]){
+#     b = c()
+#     for(i in c(1:nrow(sim.data))){
+#       
+#       b = append(b,
+#                  B_function.star(v, v.star,
+#                                  theta = theta.est[-length(gv.true)],
+#                                  yi = sim.data$Yi[i],
+#                                  xi = as.numeric(X.df[i,])))
+#       
+#     }
+#     B[v,v.star] = sum(b)
+#   }
+# }
+B = matrix(0, nrow = length(Y_support) - 1, ncol = length(Y_support) - 1)
+for(i in c(1:nrow(sim.data))){
+  
+  B = B + B_function.star(theta = theta.est[-length(gv.true)],
+                          yi = sim.data$Yi[i],
+                          zi = as.numeric(Z.df[i,]))
+  
 }
 
 #check
@@ -364,42 +370,57 @@ for(v in Y_support[1:(m-1)]){
 #colnames(B) = c("g1", "g2")
 #B
 
-z_data = c()
+a_data = c()
 for(i in c(1:n)){
-  z_data = append(z_data,
-                  Z_function.star(u = sim.data$Xi[i],
-                                  xi = as.numeric(X.df[i,]),
-                                  theta = theta.est[-len.g]))
+  a_data = append(a_data,
+                  A_function.star(u = sim.data$Xi[i],
+                                  zi = as.numeric(Z.df[i,]),
+                                  theta = theta.est[-length(gv.true)]))
 }
 
-Z = diag(z_data)
+A = diag(a_data)
 
 #check
 #t(X) %*% Z %*% X
 
-dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.est))
+#dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.true))
 #colnames(dl.dgv.db) = c("b0", "b1", "b2")
 #rownames(dl.dgv.db) = c("g1", "g2")
 
+# for(v in c( (Delta + 1):(Delta + m - 1)) ){
+#   
+#   a_data = c()
+#   for(i in c(1:n)){
+#     a_data = append(a_data,
+#                     A_function.star(v = v,
+#                                     xi = as.numeric(X.df[i,]),
+#                                     theta = theta.est[-length(gv.true)]))
+#   }
+#   
+#   A = diag(a_data)
+#   
+#   dl.dgv.db[(v - Delta), ] = t(J) %*% A %*% X
+#   
+# }
+
+D = matrix(NA, nrow = n, ncol = length(Y_support) - 1)
+for(i in c(1:n)){
+  
+  D[i,] = D_function.star(theta = theta.est[-length(gv.true)],
+                          zi = as.numeric(Z.df[i,]))
+  
+}
+dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.true))
 for(v in c( (Delta + 1):(Delta + m - 1)) ){
   
-  a_data = c()
-  for(i in c(1:n)){
-    a_data = append(a_data,
-                    A_function.star(v = v,
-                                    xi = as.numeric(X.df[i,]),
-                                    theta = theta.est[-len.g]))
-  }
+  D.star = diag(D[,v - Delta])
   
-  A = diag(a_data)
-  
-  dl.dgv.db[(v - Delta), ] = t(J) %*% A %*% X
-  
+  dl.dgv.db[(v - Delta), ] = t(J) %*% D.star %*% Z
 }
 
 #formulaic hessian
 H = cbind(rbind(B, t(dl.dgv.db)),
-          rbind(dl.dgv.db, t(X) %*% Z %*% X))
+          rbind(dl.dgv.db, t(Z) %*% A %*% Z))
 
 colnames(H) <- NULL
 rownames(H) <- NULL
@@ -417,8 +438,8 @@ results = data.frame("param" = param,
                      "point.est" = point.est,
                      "std.error" = st.errs)
 
-write.csv(H, "./results/aart-hessian.csv")
-write.csv(results, "./results/aart-est.csv")
+write.csv(H, "./results/aart-hessian-36mo.csv")
+write.csv(results, "./results/aart-est-36mo.csv")
 
 end_time <- Sys.time()
 elapsed_time <- end_time - start_time
@@ -426,9 +447,9 @@ elapsed_time <- end_time - start_time
 ################################################################################
 # summarize results
 
-hessian = read.csv("./results/aart-hessian.csv")
+hessian = read.csv("./results/aart-hessian-36mo.csv")
 hessian = hessian[,-1]
-aart.est = read.csv("./results/aart-est.csv")
+aart.est = read.csv("./results/aart-est-36mo.csv")
 aart.est = aart.est[,-1]
 
 aart.est$wald.test = aart.est$point.est / aart.est$std.error
@@ -440,35 +461,13 @@ aart.est$sig.code =
                 ifelse( (aart.est$p.value <= 0.05) & (aart.est$p.value > 0.01), "*",
                         ifelse( (aart.est$p.value <= 0.10) & (aart.est$p.value > 0.05), ".", ""))))
 
-write.csv(aart.est, "./results/aart-est.csv")
+write.csv(aart.est, "./results/aart-est-36mo.csv")
 
-#Table 2
+#Table 2, 36mo
 aart.est
 
-#Figure 1
-#g-param only
-aart.est = aart.est[1:33,]
-aart.est$age = c(4:36)
-
-aart.est$ci.high = aart.est$point.est + qnorm(0.975) * aart.est$std.error
-aart.est$ci.low = aart.est$point.est - qnorm(0.975) * aart.est$std.error
-
-ggplot() +
-  geom_line(data=aart.est, aes(x=age, y=point.est), color="blue") +
-  geom_point(data=aart.est, aes(x=age, y=point.est), color="blue") +
-  geom_ribbon(data=aart.est, aes(x=age, ymin=ci.low, ymax=ci.high),
-              fill="lightblue", alpha=0.5) +
-  xlab("Loan Age") + ylab("Estimated Probability Mass") +
-  theme_bw() +
-  theme(axis.title.x=element_text(size=10, family="Times New Roman"),
-        axis.title.y=element_text(size=10,family="Times New Roman"),
-        strip.text=element_text(size=10,family="Times New Roman"),
-        axis.text=element_text(size=10,family="Times New Roman"))
-
-ggsave("./results/aart-g-est.pdf",height=4,width=6,device = cairo_pdf)
-
 #uniform dist hypothesis test
-reg.data = read.csv("./processed-data/aart-2017-37mo.csv")
+reg.data = read.csv("./processed-data/aart-2017-36mo.csv")
 reg.data = reg.data[,-1]
 
 #trapezoid
