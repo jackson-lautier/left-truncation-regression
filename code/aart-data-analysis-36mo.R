@@ -148,7 +148,7 @@ sim.data = reg.data
 #parameter estimation
 ##############################################################################
 
-Z.df = cbind("z0" = rep(1,n), sim.data[,c("z1", "z2", "z3", "z4")])
+Z.df = cbind("z0" = rep(1,n), sim.data[,c(3:ncol(sim.data))])
 Z = as.matrix(Z.df)
 J = rep(1, n)
 
@@ -165,7 +165,7 @@ beta.0 = inv.link(p.est)
 
 #step 2: use NR method to get beta estimates
 gv = g.0 
-B0 = c(beta.0, rep(0,length(beta.true)-1))
+B0 = c(beta.0, rep(0, ncol(Z) - 1))
 
 B.hist = matrix(NA, nrow = length(B0), ncol = 200)
 B.hist[,1] = B0

@@ -255,4 +255,4 @@ ggplot() +
         legend.position = c(0.1, 0.8))
 
 
-ggsave("./manuscript/aart-prop-haz.pdf",height=4,width=6,device = cairo_pdf)
+ggsave("./results/aart-prop-haz.pdf",height=4,width=6,device = cairo_pdf)

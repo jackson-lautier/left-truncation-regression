@@ -438,4 +438,4 @@ ggplot(df, aes(x=sim_result)) +
         legend.text=element_text(size=10, family="Times New Roman"),
         legend.position = "bottom")
 
-ggsave("./manuscript/chi-sq-sim-cens.pdf",height=4,width=6,device = cairo_pdf)
+ggsave("./results/chi-sq-sim-cens.pdf",height=4,width=6,device = cairo_pdf)
