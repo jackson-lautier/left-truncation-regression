@@ -136,8 +136,8 @@ for(i in 2:100){
   if(max(abs(B.hist[,i]-B.hist[,i-1])) < tol){B.est <- B.hist[,i-1]; break}
   else(B.est = B.new)
   
-  print(i)
-  print(B.hist[,1:i])
+  #print(i)
+  #print(B.hist[,1:i])
   
 }
 
@@ -160,8 +160,8 @@ for(i in 2:100){
   if(max(abs(G.hist[,i]-G.hist[,i-1])) < tol){G.est <- G.hist[,i-1]; break}
   else(G.est = G.new)
   
-  print(i)
-  print(G.hist[,1:i])
+  #print(i)
+  #print(G.hist[,1:i])
   
 }
 
@@ -203,8 +203,8 @@ for(j in 2:100){
     if(max(abs(B.hist[,i]-B.hist[,i-1])) < tol){B.est <- B.hist[,i-1]; break}
     else(B.est = B.new)
     
-    print(i)
-    print(B.hist[,1:i])
+    #print(i)
+    #print(B.hist[,1:i])
     
   }
   
@@ -250,8 +250,8 @@ for(j in 2:100){
     if(max(abs(G.hist[,i]-G.hist[,i-1])) < tol){G.est <- G.hist[,i-1]; break}
     else(G.est = G.new)
     
-    print(i)
-    print(G.hist[,1:i])
+    #print(i)
+    #print(G.hist[,1:i])
     
   }
   
@@ -280,9 +280,9 @@ for(j in 2:100){
   
   if( sum(abs(THETA.hist[,j-1] - THETA.hist[j])) == 0 ){break}
   
-  print(j)
-  print( THETA.hist[,j] )
-  print( cur.deriv )
+  #print(j)
+  #print( THETA.hist[,j] )
+  #print( cur.deriv )
   
 }
 ################################################################STOPPING POINT
