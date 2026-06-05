@@ -359,7 +359,7 @@ print(elapsed_time)
 B = matrix(0, nrow = length(Y_support) - 1, ncol = length(Y_support) - 1)
 for(i in c(1:nrow(sim.data))){
   
-  B = B + B_function.star(theta = theta.est[-length(gv.true)],
+  B = B + B_function.star(theta = theta.est[-length(Y_support)],
                           yi = sim.data$Yi[i],
                           zi = as.numeric(Z.df[i,]))
   
@@ -375,7 +375,7 @@ for(i in c(1:n)){
   a_data = append(a_data,
                   A_function.star(u = sim.data$Xi[i],
                                   zi = as.numeric(Z.df[i,]),
-                                  theta = theta.est[-length(gv.true)]))
+                                  theta = theta.est[-length(Y_support)]))
 }
 
 A = diag(a_data)
@@ -406,11 +406,11 @@ A = diag(a_data)
 D = matrix(NA, nrow = n, ncol = length(Y_support) - 1)
 for(i in c(1:n)){
   
-  D[i,] = D_function.star(theta = theta.est[-length(gv.true)],
+  D[i,] = D_function.star(theta = theta.est[-length(Y_support)],
                           zi = as.numeric(Z.df[i,]))
   
 }
-dl.dgv.db = matrix(NA, nrow = m - 1, ncol = length(beta.true))
+dl.dgv.db = matrix(NA, nrow = m - 1, ncol = ncol(Z))
 for(v in c( (Delta + 1):(Delta + m - 1)) ){
   
   D.star = diag(D[,v - Delta])
@@ -425,14 +425,14 @@ H = cbind(rbind(B, t(dl.dgv.db)),
 colnames(H) <- NULL
 rownames(H) <- NULL
 
-point.est = theta.est[-len.g]
+point.est = theta.est[-length(Y_support)]
 st.errs = sqrt(diag(solve(-H)))
 
 point.est + qnorm(0.975) * st.errs
 point.est - qnorm(0.975) * st.errs
 
 param = c(paste("g", c((Delta + 1):(m + Delta - 1)), sep = ""),
-          colnames(X.df))
+          colnames(Z.df))
 
 results = data.frame("param" = param,
                      "point.est" = point.est,
