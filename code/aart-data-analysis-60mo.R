@@ -396,8 +396,8 @@ results = data.frame("param" = param,
                      "point.est" = point.est,
                      "std.error" = st.errs)
 
-write.csv(H, "aart-hessian-60mo.csv")
-write.csv(results, "aart-est-60mo.csv")
+write.csv(H, "./results/aart-hessian-60mo.csv")
+write.csv(results, "./results/aart-est-60mo.csv")
 
 end_time <- Sys.time()
 elapsed_time <- end_time - start_time
