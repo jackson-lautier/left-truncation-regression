@@ -602,6 +602,12 @@ s.df = data.frame("credit.score" = as.numeric(aart$obligorCreditScore),
 #"veh.year" = aart$vehicleModelYear)
 
 s.df = scale(s.df)
+
+#save for example calcs in supplement
+scale.attr = as.data.frame(attr(s.df, "scaled:scale"))
+scale.attr = cbind(scale.attr, attr(s.df, "scaled:center"))
+write.csv(scale.attr, "./processed-data/aart-60mo-scale-attr.csv")
+
 s.df = as.data.frame(s.df)
 
 #categorical variables to include

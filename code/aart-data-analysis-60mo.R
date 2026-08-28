@@ -427,19 +427,53 @@ aart.est
 ################################################################################
 # example inputs
 
+aart.est = read.csv("./results/aart-est-60mo.csv")
+aart.est = aart.est[,-1]
 
+aart.attr = read.csv("./processed-data/aart-60mo-scale-attr.csv")
+colnames(aart.attr) = c("var", "sd", "mean")
 
+start = which(aart.est$param == "z0")
+end = which(aart.est$param == "veh.suv")
+est.beta = aart.est[c(start:end), c("point.est")]
 
+cred.s = (750 - aart.attr[ aart.attr$var == "credit.score", c("mean")]) /
+  aart.attr[ aart.attr$var == "credit.score", c("sd")]
 
+int.rt = (0.04 - aart.attr[ aart.attr$var == "interest.rate", c("mean")]) /
+  aart.attr[ aart.attr$var == "interest.rate", c("sd")]
 
+pti = (0.06 - aart.attr[ aart.attr$var == "pti", c("mean")]) /
+  aart.attr[ aart.attr$var == "pti", c("sd")]
 
+v.val = (log(25000) - aart.attr[ aart.attr$var == "veh.value", c("mean")]) /
+  aart.attr[ aart.attr$var == "veh.value", c("sd")]
 
+co.sgn = 0
+nw.usd = 1
+sbvt.r = 0
+sbvt.c = 0
+v.picu = 0
+v.suv = 1
 
+z0 = c(1, cred.s, int.rt, pti, v.val, co.sgn, nw.usd, sbvt.r, sbvt.c, v.picu, v.suv)
 
+#baseline
+pi.0 = exp(z0 %*% est.beta) / (1 + exp(z0 %*% est.beta))
+OR = pi.0 / (1 - pi.0)
 
+z0.p = c(1, cred.s, int.rt, pti, v.val, co.sgn, nw.usd, 1 - sbvt.r, sbvt.c, v.picu, v.suv)
 
+#w subvention rate
+pi = exp(z0.p %*% est.beta) / (1 + exp(z0.p %*% est.beta))
+OR.p = pi / (1 - pi)
 
+#check
+(OR.p / OR); exp( aart.est$point.est[which(aart.est$param == "subvent.rate")] )
 
+#change in mean lifetimes
+(68 - 2 - 1) * pi #w subvention rate
+(68 - 2 - 1) * pi.0 #w/0 subvention rate
 
 
 
