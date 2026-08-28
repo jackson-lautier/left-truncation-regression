@@ -554,6 +554,9 @@ aart = aart[!(aart$obligorCreditScoreType == "None"),]
 aart = aart[!(aart$obligorIncomeVerificationLevelCode == 3),]
 #final count: 17,016
 
+#percentage censored
+sum(aart$C) / nrow(aart)
+
 obs_data <- data.frame(aart$Xc,aart$Y,aart$C)
 obs_data$D = 1 - obs_data$aart.C
 #table(obs_data$aart.C) #no right-censored observations

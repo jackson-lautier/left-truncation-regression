@@ -424,3 +424,23 @@ write.csv(aart.est, "./results/aart-est-60mo.csv")
 #Table 2, 60mo
 aart.est
 
+################################################################################
+# example inputs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
