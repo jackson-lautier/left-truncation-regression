@@ -475,6 +475,49 @@ OR.p = pi / (1 - pi)
 (68 - 2 - 1) * pi #w subvention rate
 (68 - 2 - 1) * pi.0 #w/0 subvention rate
 
+################################################################################
+# pool level plots
+
+remotes::install_github("lcgodoy/abslife",
+                        ref = "dev",
+                        build = TRUE,
+                        build_vignettes = TRUE,
+                        build_manual = TRUE,
+                        force = TRUE)
+
+library('abslife')
+
+rm(list=ls())
+
+reg.data = read.csv("./processed-data/aart-2017-60mo.csv")
+reg.data = reg.data[,-1]
+
+#trapezoid
+omega = max(reg.data$Ti)
+Delta = min( min(reg.data$Yi), min(reg.data$Ti) ) - 1
+m = max(reg.data$Yi) - Delta
+tau = unique( (reg.data$Ti - reg.data$Yi)[reg.data$Di == 0] )
+e = tau + (m + Delta + 1)
+
+aart.60m <- estimate_hazard(lifetime = reg.data$Ti,
+                            trunc_time = reg.data$Yi,
+                            censoring_indicator = 1 - reg.data$Di,
+                            support_lifetime_rv = c((Delta + 1):(omega)),
+                            ci_level = 0.95)
+
+summary(aart.60m)
+
+aart_cdf <- calc_cdf(aart.60m)
+
+write.csv(as.data.frame(aart_cdf), "./results/aart-ime-60mo.csv")
+
+
+
+
+
+
+
+
 
 
 

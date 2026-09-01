@@ -527,3 +527,36 @@ cur_Z_stat =
 
 pchisq(cur_Z_stat,length(B_H0),lower.tail = FALSE)
 
+################################################################################
+# pool level plots
+
+remotes::install_github("lcgodoy/abslife",
+                        ref = "dev",
+                        build = TRUE,
+                        build_vignettes = TRUE,
+                        build_manual = TRUE,
+                        force = TRUE)
+
+library('abslife')
+
+rm(list=ls())
+
+reg.data = read.csv("./processed-data/aart-2017-36mo.csv")
+reg.data = reg.data[,-1]
+
+#trapezoid
+omega = max(reg.data$Xi)
+Delta = min( min(reg.data$Yi), min(reg.data$Xi) ) - 1
+m = max(reg.data$Yi) - Delta
+
+aart.36m <- estimate_hazard(lifetime = reg.data$Xi,
+                            trunc_time = reg.data$Yi,
+                            support_lifetime_rv = c((Delta + 1):(omega)),
+                            ci_level = 0.95)
+
+summary(aart.36m)
+
+aart_cdf <- calc_cdf(aart.36m)
+
+write.csv(as.data.frame(aart_cdf), "./results/aart-ime-36mo.csv")
+

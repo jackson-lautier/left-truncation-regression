@@ -192,6 +192,7 @@ path = "./raw-data/"
 aart <- read.csv(paste(path,'aart173_compiledr.csv',sep=""))
 
 aart <- aart[aart$originalLoanTerm %in% loan_term_c,]
+aart$exactLoanTerm = aart$originalLoanTerm
 aart$originalLoanTerm = 36
 
 #calculate remaining payments
@@ -448,6 +449,10 @@ ggplot(data = melted_cor, aes(x=Var1, y=Var2, fill=value)) +
 
 write.csv(reg.data, './processed-data/aart-2017-36mo.csv')
 
+reg.data$exact.loan.term = aart$exactLoanTerm
+
+write.csv(reg.data, './processed-data/aart-2017-36mo-robust.csv')
+
 
 ################################################################################
 # 60 MONTH LOANS
@@ -464,6 +469,7 @@ path = "./raw-data/"
 aart <- read.csv(paste(path,'aart173_compiledr.csv',sep=""))
 
 aart <- aart[aart$originalLoanTerm %in% loan_term_c,]
+aart$exactLoanTerm = aart$originalLoanTerm
 aart$originalLoanTerm = 60
 
 #calculate remaining payments
@@ -734,6 +740,10 @@ ggplot(data = melted_cor, aes(x=Var1, y=Var2, fill=value)) +
         panel.background = element_blank())
 
 write.csv(reg.data, './processed-data/aart-2017-60mo.csv')
+
+reg.data$exact.loan.term = aart$exactLoanTerm
+
+write.csv(reg.data, './processed-data/aart-2017-60mo-robust.csv')
 
 
 
