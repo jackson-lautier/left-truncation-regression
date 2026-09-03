@@ -511,6 +511,105 @@ aart_cdf <- calc_cdf(aart.60m)
 
 write.csv(as.data.frame(aart_cdf), "./results/aart-ime-60mo.csv")
 
+################################################################################
+# LRT
+
+rm(list=ls())
+
+reg.data = read.csv("./processed-data/aart-2017-60mo.csv")
+reg.data = reg.data[,-1]
+
+#trapezoid
+omega = max(reg.data$Ti)
+Delta = min( min(reg.data$Yi), min(reg.data$Ti) ) - 1
+m = max(reg.data$Yi) - Delta
+tau = unique( (reg.data$Ti - reg.data$Yi)[reg.data$Di == 0] )
+e = tau + (m + Delta + 1)
+
+n = nrow(reg.data)
+
+source('./code/h-dist-cens-simulation-function-beta-parameters.R')
+source('./code/censoring.h.star.param.est.R')
+
+u.est = read.csv("./results/aart-est-60mo.csv")
+theta.est = u.est$point.est
+
+# calculate unrestricted likelihood
+
+L = c()
+data = reg.data
+
+D.0 = data[data$Di == 0,]
+D.1 = data[data$Di == 1,]
+
+for(i in c(1:(nrow(D.0)))){
+  
+  cTi = D.0[i, "Ti"]
+  cYi = D.0[i, "Yi"]
+  czi = as.numeric(c(1, reg.data[i, c(4:13)]))
+  
+  L = append(L, log( h_bar(cTi, cYi, czi,
+                           gv = c(theta.est[1:59], 1 - sum(theta.est[1:59])),
+                           beta = theta.est[60:70]) ) )
+  
+}
+
+for(i in c(1:(nrow(D.1)))){
+  
+  cTi = D.1[i, "Ti"]
+  cYi = D.1[i, "Yi"]
+  czi = as.numeric(c(1, reg.data[i, c(4:13)]))
+  
+  L = append(L, log( h_star(cTi, cYi, czi,
+                            gv = c(theta.est[1:59], 1 - sum(theta.est[1:59])),
+                            beta = theta.est[60:70]) ) )
+  
+}
+
+ell.1 = sum(L)
+
+#estimate restricted param MLE (AOAS)
+
+sim.data = data.frame(
+  "Yi" = reg.data$Yi,
+  "Ti" = reg.data$Ti,
+  "Di" = reg.data$Di
+)
+
+p_hat = optimize(P_constraint, c(0,1), tol = 1e-10)$minimum
+G_hat = mapply(g_tau_hat, c((Delta+1):(m+Delta)), p_hat)
+theta.est.0 = c(p_hat, G_hat)
+
+#calculate restricted likelihood
+
+Li = c()
+for(i in c(1:n)){
+  
+  if(sim.data$Di[i] == 1){
+    contrib = g_Y.aoas(sim.data$Yi[i], theta.est.0) * f_X.aoas(sim.data$Ti[i], theta.est.0)
+    Li = append(Li, log(contrib))
+  }
+  
+  if(sim.data$Di[i] == 0){
+    contrib = g_Y.aoas(sim.data$Yi[i], theta.est.0) * S_X.aoas(sim.data$Ti[i] + 1, theta.est.0)
+    Li = append(Li, log(contrib))
+  }
+}
+
+n = nrow(sim.data)
+alp = alpha.aoas(theta.est.0)
+
+ell.0 = -n * log(alp) + sum(Li)
+
+#calculate chi-sq test statistic
+
+omega.tau.n = -2 * (ell.0 - ell.1)
+
+#critical value
+omega.tau.n; qchisq(0.95, df = 10, lower.tail = TRUE)
+
+#p.value
+pchisq(omega.tau.n, df = 10, lower.tail = FALSE)
 
 
 

@@ -560,3 +560,79 @@ aart_cdf <- calc_cdf(aart.36m)
 
 write.csv(as.data.frame(aart_cdf), "./results/aart-ime-36mo.csv")
 
+################################################################################
+# LRT
+
+rm(list=ls())
+
+reg.data = read.csv("./processed-data/aart-2017-36mo.csv")
+reg.data = reg.data[,-1]
+
+#trapezoid
+omega = max(reg.data$Xi)
+Delta = min( min(reg.data$Yi), min(reg.data$Xi) ) - 1
+m = max(reg.data$Yi) - Delta
+
+n = nrow(reg.data)
+
+source('./code/h-star-simulation-function-beta-parameters.R')
+source('./code/binom.p.est.aoas.R')
+source('./code/h.star.param.est.R')
+
+u.est = read.csv("./results/aart-est-36mo.csv")
+theta.est = u.est$point.est
+
+#calculate unrestricted likelihood
+
+L = c()
+
+for(i in c(1:n)){
+  
+  cXi = reg.data[i, "Xi"]
+  cYi = reg.data[i, "Yi"]
+  czi = as.numeric(c(1, reg.data[i, c(3:12)]))
+  
+  L = append(L, log( h_star(cXi, cYi, czi,
+                            gv = c(theta.est[1:33], 1 - sum(theta.est[1:33])),
+                            beta = theta.est[34:44]) ) )
+  
+}
+
+ell.1 = sum(L)
+
+#estimate restricted param MLE (AOAS)
+
+#observed data
+obs_data = data.frame(
+  "Yi" = reg.data$Yi,
+  "Xi" = reg.data$Xi
+)
+
+p_hat = optimize(P_constraint, c(0,1), tol = 1e-10)$minimum
+G_hat = mapply(g_tau_hat, c((Delta+1):(m+Delta)), p_hat)
+
+theta.est.0 = c(p_hat, G_hat)
+
+#calculate restricted likelihood
+
+Li = c()
+for(k in c((Delta + 1):(Delta + m))){
+  for(j in c(k:(omega))){
+    cnt = sum(( (obs_data$Yi == k ) & (obs_data$Xi == j) ))
+    val = ( f_X.aoas(j, theta.est.0) * g_Y.aoas(k, theta.est.0) ) / alpha.aoas(theta.est.0)
+    Li = append(Li, cnt * log( val ) )
+  }
+}
+
+ell.0 = sum(Li)
+
+#calculate chi-sq test statistic
+omega.n = -2 * (ell.0 - ell.1)
+
+#critical value
+omega.n; qchisq(0.95, df = 10, lower.tail = TRUE)
+
+#p.value
+pchisq(omega.n, df = 10, lower.tail = FALSE)
+
+
