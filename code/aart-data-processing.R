@@ -449,7 +449,7 @@ ggplot(data = melted_cor, aes(x=Var1, y=Var2, fill=value)) +
 
 write.csv(reg.data, './processed-data/aart-2017-36mo.csv')
 
-reg.data$exact.loan.term = aart$exactLoanTerm
+reg.data$exact.loan.term = ifelse(aart$exactLoanTerm == 38, 1, 0)
 
 write.csv(reg.data, './processed-data/aart-2017-36mo-robust.csv')
 
@@ -741,7 +741,7 @@ ggplot(data = melted_cor, aes(x=Var1, y=Var2, fill=value)) +
 
 write.csv(reg.data, './processed-data/aart-2017-60mo.csv')
 
-reg.data$exact.loan.term = aart$exactLoanTerm
+reg.data$exact.loan.term = ifelse(aart$exactLoanTerm == 62, 1, 0)
 
 write.csv(reg.data, './processed-data/aart-2017-60mo-robust.csv')
 
