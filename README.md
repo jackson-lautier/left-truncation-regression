@@ -21,7 +21,7 @@ This repository includes:
 AART 2017-3.
 
 - **data-clean** Cleaned raw data into files used within the manuscript.  These
-files are identical to the files created by `data-processing.R' in the **code**
+files are identical to the files created by `aart-data-processing.R` in the **code**
 folder.
 
 - **code** Replication code files.  First run `aart-data-processing.R` to create the
