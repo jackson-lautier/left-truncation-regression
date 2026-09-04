@@ -4,10 +4,10 @@
 
 ## Introduction
 
-This repository is intended as an online supplement to the working paper:
+This repository is intended as an online supplement to the manuscript:
 
 Lautier, J. P., Pozdnyakov, V., Yan, J. (2026) "Discrete Time-to-Event Regression Analysis
-Under Left-Truncation with Applications to Consumer Finance." *Italics*
+Under Left-Truncation with Applications to Consumer Finance." *Journal of Business & Economic Statistics*
 (see [https://jacksonlautier.com/publications](https://jacksonlautier.com/publications)
 for current working papers)
 
