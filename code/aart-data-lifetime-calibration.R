@@ -1,6 +1,13 @@
-#import data
+################################################################################
+# this file reproduces Figure~E1
+# it should be run after 'aart-data-analysis-36mo.R'
+# and 'aart-data-analysis-60mo.R'
+################################################################################
+
 require(ggplot2)
 require(extrafont)
+
+#import data
 
 #36 months
 aart.est.36mo = read.csv("./results/aart-ime-36mo.csv")
