@@ -79,7 +79,7 @@ n = 1000
 
 #trapezoid
 omega = 12
-Delta = 2
+Delta = 0
 m = 8
 e = 15
 
